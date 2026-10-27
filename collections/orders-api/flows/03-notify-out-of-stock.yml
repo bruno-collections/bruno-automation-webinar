@@ -1,0 +1,62 @@
+info:
+  name: Notify out of stock
+  type: http
+  seq: 3
+  tags:
+    - regression
+
+http:
+  method: POST
+  url: https://www.httpfaker.org/api/echo
+  headers:
+    - name: content-type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "event": "out_of_stock",
+        "productId": {{productId}},
+        "stock": {{stock}}
+      }
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        // Branch B guard. If Check stock took branch A, Place order has just run
+        // and file order lands here next. Drop this request from the run - a
+        // skip, not a failure - so the two paths rejoin at Nightly report.
+        if (Number(bru.getVar("stock")) > 0) {
+          console.log("Stock available - nothing to notify, skipping");
+          bru.runner.skipRequest();
+        }
+    - type: tests
+      code: |-
+        const sent = JSON.parse(res.getBody().body);
+
+        test("notification sent", () => {
+          expect(res.getStatus()).to.equal(200);
+          expect(sent.event).to.equal("out_of_stock");
+        });
+
+        test("notification carries the stock figure Check stock saw", () => {
+          expect(sent.stock).to.equal(0);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 10000
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  ## Notify out of stock - branch B
+
+  Runs when `Check stock` saw zero stock. On the in-stock path it skips
+  itself with `bru.runner.skipRequest()`. Posts to httpfaker's echo
+  endpoint, which hands the body straight back so the test can check what
+  was actually sent.
+
+  No `auth` block: a webhook-style call to a third party should not carry our
+  API token, so this request opts out of the inherited Bearer auth.

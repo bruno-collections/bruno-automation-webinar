@@ -1,0 +1,45 @@
+info:
+  name: orders
+  type: folder
+  seq: 2
+
+request:
+  auth: inherit
+  scripts:
+    - type: before-request
+      code: |-
+        // FOLDER-LEVEL GUARD, hoisted once for every request in orders/.
+        // If this folder is run on its own there is no token in scope yet, so
+        // drive the login from here. bru.runRequest takes a FILE PATH from the
+        // collection root (extension dropped) and runs that request's scripts
+        // and tests too - which is what populates {{accessToken}}.
+        //
+        // Keep this out of the collection-level script: there it would also
+        // fire for auth/login itself and recurse.
+        if (!bru.getVar("accessToken")) {
+          console.log("No token in scope - running auth/login first");
+          const login = await bru.runRequest("auth/login");
+          console.log(`auth/login -> ${login.status}`);
+        }
+
+docs:
+  content: |-
+    ## orders
+
+    The chain: create -> list -> get, each reading what the previous one
+    extracted. The folder-level pre-request script logs in if nothing has yet,
+    so this folder also runs standalone:
+
+    ```bash
+    bru run orders --env staging --exclude-tags data-driven
+    ```
+
+    `create-from-file` is the data-driven request. It only makes sense with a
+    data file attached, so it is tagged `data-driven` and excluded from normal
+    runs:
+
+    ```bash
+    bru run orders/create-from-file.yml --env staging \
+      --csv-file-path ../../data/order-lines.csv
+    ```
+  type: text/markdown

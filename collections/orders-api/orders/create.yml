@@ -1,0 +1,85 @@
+info:
+  name: create
+  type: http
+  seq: 1
+  tags:
+    - smoke
+    - regression
+
+http:
+  method: POST
+  url: "{{baseUrl}}/carts/add"
+  headers:
+    - name: content-type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "userId": {{userId}},
+        "products": [
+          { "id": {{productId}}, "quantity": {{quantity}} }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        // Compute, don't hardcode. An idempotency key is built at send time so
+        // a retried POST can be recognised server-side. Never paste one in.
+        req.setHeader("Idempotency-Key", bru.interpolate("{{$randomUUID}}"));
+    - type: after-response
+      code: |-
+        // Extract for the next request in the chain.
+        const order = res.getBody();
+        bru.setVar("orderId", order.id);
+        bru.setVar("orderTotal", order.total);
+        console.log(`Created order ${order.id}, total ${order.total}`);
+    - type: tests
+      code: |-
+        const order = res.getBody();
+
+        test("order created (201)", () => {
+          expect(res.getStatus()).to.equal(201);
+        });
+
+        test("order belongs to the logged-in user", () => {
+          expect(order.userId).to.equal(bru.getVar("userId"));
+        });
+
+        test("line item matches what we sent", () => {
+          expect(order.products[0].id).to.equal(Number(bru.getEnvVar("productId")));
+          expect(order.totalQuantity).to.equal(Number(bru.getEnvVar("quantity")));
+        });
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "201"
+    - expression: res.body.id
+      operator: isNumber
+    - expression: res.responseTime
+      operator: lte
+      value: "3000"
+
+settings:
+  encodeUrl: true
+  timeout: 10000
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  ## create - chain in, chain out
+
+  **Chain in**: the body uses `{{userId}}`, which `auth/login` extracted. The
+  Bearer header comes from `{{accessToken}}` via the collection.
+
+  **Pre-request**: stamps an `Idempotency-Key` built at send time.
+
+  **Chain out**: `orderId` and `orderTotal` go into runtime vars for whatever
+  runs next.
+
+  DummyJSON's `/carts/add` is the stand-in for "create order". It returns a
+  realistic 201 with computed totals but does not persist the record, which is
+  why `get` reads an id from `list` rather than this `orderId`.

@@ -1,0 +1,47 @@
+info:
+  name: me
+  type: http
+  seq: 2
+  tags:
+    - smoke
+    - regression
+
+http:
+  method: GET
+  url: "{{baseUrl}}/auth/me"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        const me = res.getBody();
+
+        test("the chained token authenticated us", () => {
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("we are the user login signed in as", () => {
+          expect(me.username).to.equal(bru.getEnvVar("username"));
+          expect(me.id).to.equal(bru.getVar("userId"));
+        });
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 10000
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  ## me - the token works
+
+  `auth: inherit`, so the Bearer header comes from the collection and the
+  token comes from the runtime variable `login` set. Nothing is configured on
+  this request itself.
+
+  To show the failure mode live: open the collection settings, switch Auth to
+  *No Auth*, Send again. `/auth/me` returns **401**, the test goes red.

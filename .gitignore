@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+*.log
+
+# bru run reporter output - generated, never committed
+reports/*.html
+reports/*.json
+reports/*.xml

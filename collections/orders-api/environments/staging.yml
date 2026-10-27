@@ -1,0 +1,22 @@
+name: staging
+color: "#6dd0cb"
+variables:
+  - name: baseUrl
+    value: https://dummyjson.com
+    description: DummyJSON - a free public fake API with real login and a protected /auth/me endpoint
+  - name: username
+    value: emilys
+    description: A demo user that DummyJSON ships with
+  - name: password
+    value: emilyspass
+    description: Public demo credential published by DummyJSON. A real password never belongs in a committed env file - see ci.yml for the pattern.
+  - name: productId
+    value: "1"
+    description: Product to order. 1 is in stock; 117 is out of stock (drives the flows/ branch)
+  - name: quantity
+    value: "2"
+  - name: runSlowReports
+    value:
+      type: boolean
+      data: "false"
+    description: flows/Nightly report skips itself unless this is true

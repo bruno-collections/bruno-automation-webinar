@@ -1,0 +1,10 @@
+opencollection: 1.0.0
+info:
+  name: "Bruno Automation Webinar"
+  type: workspace
+
+collections:
+  - name: "orders-api"
+    path: "collections/orders-api"
+
+docs: ''

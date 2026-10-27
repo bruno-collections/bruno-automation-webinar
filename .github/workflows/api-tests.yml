@@ -1,0 +1,129 @@
+# Every commit runs the API tests.
+#
+# Three jobs, one collection:
+#   smoke       - every push and PR. --tags smoke --bail for fast feedback.
+#   regression  - pushes to main and manual runs. Full suite, three reporters,
+#                 report uploaded as a build artifact.
+#   nightly     - scheduled. Adds the `slow` requests and the data-driven run.
+#
+# Secrets stay in the CI vault. API_PASSWORD is injected with --env-var and
+# scrubbed from reports with --reporter-skip-headers. The `ci` environment
+# commits only non-secret config.
+#
+# The demo backend (dummyjson.com) uses a public demo credential, so forks
+# without the secret fall back to it and stay green. For a real API, drop the
+# fallback.
+#
+# Action: https://github.com/usebruno/bruno-cli-action
+# CLI:    https://docs.usebruno.com/bru-cli/overview
+
+name: API Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      base-url:
+        description: Override baseUrl (e.g. a PR preview deployment)
+        required: false
+        default: ""
+
+env:
+  COLLECTION: collections/orders-api
+
+jobs:
+  smoke:
+    name: Smoke (every push)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: bru run --tags smoke --bail
+        id: bru
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          working-directory: ${{ env.COLLECTION }}
+          command: >-
+            run --env ci
+            --env-var password=${{ secrets.API_PASSWORD || 'emilyspass' }}
+            --tags smoke --bail
+            --reporter-skip-headers Authorization
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Smoke: ${{ steps.bru.outputs.passed }}/${{ steps.bru.outputs.total }} passed in ${{ steps.bru.outputs.duration-ms }} ms" >> "$GITHUB_STEP_SUMMARY"
+
+  regression:
+    name: Regression (main)
+    if: github.event_name != 'schedule'
+    needs: smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: bru run (full suite, three reporters)
+        id: bru
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          working-directory: ${{ env.COLLECTION }}
+          command: >-
+            run --env ci
+            --env-var password=${{ secrets.API_PASSWORD || 'emilyspass' }}
+            --env-var baseUrl=${{ inputs.base-url || 'https://dummyjson.com' }}
+            --tags regression --exclude-tags slow
+            --reporter-junit  ../../reports/results.xml
+            --reporter-html   ../../reports/results.html
+            --reporter-json   ../../reports/results.json
+            --reporter-skip-headers Authorization
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Regression: ${{ steps.bru.outputs.passed }}/${{ steps.bru.outputs.total }} passed in ${{ steps.bru.outputs.duration-ms }} ms" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-test-results
+          path: reports/
+
+  nightly:
+    name: Nightly (slow + data-driven)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Full run including slow requests
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          working-directory: ${{ env.COLLECTION }}
+          command: >-
+            run --env ci
+            --env-var password=${{ secrets.API_PASSWORD || 'emilyspass' }}
+            --env-var runSlowReports=true
+            --tags regression
+            --reporter-junit ../../reports/nightly.xml
+            --reporter-skip-headers Authorization
+
+      - name: Data-driven run over data/order-lines.csv
+        uses: usebruno/bruno-cli-action@v1
+        with:
+          working-directory: ${{ env.COLLECTION }}
+          command: >-
+            run orders/create-from-file.yml --env ci
+            --env-var password=${{ secrets.API_PASSWORD || 'emilyspass' }}
+            --csv-file-path ../../data/order-lines.csv
+            --reporter-junit ../../reports/data-driven.xml
+            --reporter-skip-headers Authorization
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-results
+          path: reports/

@@ -1,0 +1,19 @@
+name: ci
+color: "#f5a623"
+variables:
+  - name: baseUrl
+    value: https://dummyjson.com
+    description: Non-secret config is committed. PR builds override it with --env-var baseUrl=https://pr-42.preview.internal
+  - name: username
+    value: emilys
+  - name: password
+    value: ""
+    description: Deliberately empty. CI injects it with --env-var password=$API_PASSWORD from the pipeline's secret store, so nothing sensitive is ever committed.
+  - name: productId
+    value: "1"
+  - name: quantity
+    value: "2"
+  - name: runSlowReports
+    value:
+      type: boolean
+      data: "false"

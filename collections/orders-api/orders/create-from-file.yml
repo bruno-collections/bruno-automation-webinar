@@ -1,0 +1,80 @@
+info:
+  name: create-from-file
+  type: http
+  seq: 4
+  tags:
+    - data-driven
+
+http:
+  method: POST
+  url: "{{baseUrl}}/carts/add"
+  headers:
+    - name: content-type
+      value: application/json
+    - name: X-Expected-Product
+      value: "{{lineProductId}}"
+    - name: X-Expected-Quantity
+      value: "{{lineQuantity}}"
+  body:
+    type: json
+    data: |-
+      {
+        "userId": {{userId}},
+        "products": [
+          { "id": {{lineProductId}}, "quantity": {{lineQuantity}} }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        const order = res.getBody();
+
+        // Data-file columns are injected into the request definition only -
+        // no bru.get*Var() reads them back. Carry the row's values as headers
+        // and read them off the interpolated request instead.
+        const expectedProduct = Number(req.getHeader("X-Expected-Product"));
+        const expectedQty = Number(req.getHeader("X-Expected-Quantity"));
+
+        test("row was injected - no unresolved template", () => {
+          expect(res.getStatus()).to.equal(201);
+          expect(req.getHeader("X-Expected-Product")).to.not.include("{{");
+        });
+
+        test("order line matches this row of the data file", () => {
+          expect(order.products[0].id).to.equal(expectedProduct);
+          expect(order.products[0].quantity).to.equal(expectedQty);
+        });
+
+        console.log(`row -> product ${expectedProduct} x ${expectedQty} = ${order.total}`);
+
+settings:
+  encodeUrl: true
+  timeout: 10000
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  ## create-from-file - one request, N rows
+
+  Each row of `data/order-lines.csv` becomes one iteration. The columns
+  (`lineProductId`, `lineQuantity`) interpolate into the body like any other
+  variable.
+
+  ```bash
+  cd collections/orders-api
+  bru run orders/create-from-file.yml --env staging \
+    --csv-file-path ../../data/order-lines.csv
+  ```
+
+  The data-file path resolves from where you run the command, not from the
+  collection root.
+
+  Tagged `data-driven` only, so `--tags smoke` and `--tags regression` skip
+  it: without a data file the body would carry a literal `{{lineProductId}}`
+  and the API returns 400.
+
+  Keep cases in the file, not in the script. Adding a test case is adding a
+  row.

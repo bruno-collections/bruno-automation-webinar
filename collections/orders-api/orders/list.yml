@@ -1,0 +1,47 @@
+info:
+  name: list
+  type: http
+  seq: 2
+  tags:
+    - regression
+
+http:
+  method: GET
+  url: "{{baseUrl}}/carts/user/{{userId}}"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        const { carts } = res.getBody();
+        // Extract a real, persisted order id for the next request.
+        bru.setVar("existingOrderId", carts[0].id);
+        console.log(`User ${bru.getVar("userId")} has ${carts.length} order(s); first is #${carts[0].id}`);
+    - type: tests
+      code: |-
+        const body = res.getBody();
+
+        test("orders listed", () => {
+          expect(res.getStatus()).to.equal(200);
+          expect(body.carts).to.be.an("array").that.is.not.empty;
+        });
+
+        test("every order belongs to the logged-in user", () => {
+          body.carts.forEach((cart) => {
+            expect(cart.userId).to.equal(bru.getVar("userId"));
+          });
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 10000
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  ## list - the user's orders
+
+  Reads `{{userId}}` from the login step, asserts every returned order belongs
+  to that user, and extracts the first order's id as `existingOrderId` for
+  `get`.

@@ -1,0 +1,57 @@
+info:
+  name: Nightly report
+  type: http
+  seq: 4
+  tags:
+    - regression
+    - slow
+
+http:
+  method: GET
+  url: "{{baseUrl}}/products?limit=0&select=id,stock"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        // Skip conditionally. Not a failure, not a pass - just dropped from the
+        // run and the report. --env-var sets strings, so compare as a string.
+        const enabled = String(bru.getEnvVar("runSlowReports")) === "true";
+
+        if (!enabled) {
+          console.log("runSlowReports is off - skipping Nightly report");
+          bru.runner.skipRequest();
+        }
+    - type: tests
+      code: |-
+        const { products } = res.getBody();
+        const outOfStock = products.filter((p) => p.stock === 0);
+
+        test("catalogue fetched", () => {
+          expect(res.getStatus()).to.equal(200);
+          expect(products.length).to.be.above(100);
+        });
+
+        console.log(`${outOfStock.length} of ${products.length} products out of stock: ${outOfStock.map((p) => p.id).join(", ")}`);
+
+settings:
+  encodeUrl: true
+  timeout: 20000
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  ## Nightly report - skip and tag
+
+  Two ways to keep a slow request out of the fast path, both shown here:
+
+  1. **Tag it `slow`** and run with `--exclude-tags slow`. The runner never
+     starts it.
+  2. **`bru.runner.skipRequest()`** in pre-request, gated on
+     `runSlowReports`. The request is dropped at run time and does not count
+     as a failure.
+
+  ```bash
+  bru run flows --env staging --env-var runSlowReports=true
+  ```

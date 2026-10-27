@@ -1,0 +1,51 @@
+info:
+  name: get
+  type: http
+  seq: 3
+  tags:
+    - regression
+
+http:
+  method: GET
+  url: "{{baseUrl}}/carts/{{existingOrderId}}"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        const order = res.getBody();
+
+        test("fetched the order list handed us", () => {
+          expect(res.getStatus()).to.equal(200);
+          expect(order.id).to.equal(bru.getVar("existingOrderId"));
+        });
+
+        test("order has line items and a total", () => {
+          expect(order.products).to.be.an("array").that.is.not.empty;
+          expect(order.total).to.be.a("number");
+        });
+
+        test("no unresolved template reached the wire", () => {
+          // encodeUrl turns {{ into %7B%7B, so decode before checking.
+          expect(decodeURIComponent(req.getUrl())).to.not.include("{{");
+        });
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+
+settings:
+  encodeUrl: true
+  timeout: 10000
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  ## get - the end of the chain
+
+  `GET /carts/{{existingOrderId}}`. Three requests in, nothing was typed by
+  hand: token from `login`, user id from `login`, order id from `list`.
+
+  The last test is a habit worth copying: an unresolved `{{var}}` is sent
+  literally (percent-encoded), not rejected, so check for it explicitly.

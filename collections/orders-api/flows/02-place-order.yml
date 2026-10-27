@@ -1,0 +1,50 @@
+info:
+  name: Place order
+  type: http
+  seq: 2
+  tags:
+    - regression
+
+http:
+  method: POST
+  url: "{{baseUrl}}/carts/add"
+  headers:
+    - name: content-type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "userId": {{userId}},
+        "products": [
+          { "id": {{productId}}, "quantity": {{quantity}} }
+        ]
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("order placed for the in-stock product", () => {
+          expect(res.getStatus()).to.equal(201);
+          expect(res.getBody().products[0].id).to.equal(Number(bru.getEnvVar("productId")));
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 10000
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  ## Place order - branch A
+
+  Only runs when `Check stock` saw stock. After it, file order resumes, so
+  `Notify out of stock` is next - that request skips itself when there is
+  stock (see its pre-request script). Both paths then rejoin at
+  `Nightly report`.
+
+  Why not `setNextRequest("Nightly report")` from here? Because a jump target
+  must be in the run. With `--exclude-tags slow` it is not, and the jump
+  errors. A self-guarding request has no such dependency.

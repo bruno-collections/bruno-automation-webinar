@@ -1,0 +1,22 @@
+info:
+  name: auth
+  type: folder
+  seq: 1
+
+request:
+  auth: inherit
+
+docs:
+  content: |-
+    ## auth
+
+    Two requests. `login` is the only request in the collection that does not
+    inherit the collection-level Bearer auth (it has nothing to inherit yet).
+    `me` proves the token it extracted actually works.
+
+    Run just this folder:
+
+    ```bash
+    bru run auth --env staging
+    ```
+  type: text/markdown

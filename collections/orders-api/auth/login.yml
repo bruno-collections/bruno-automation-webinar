@@ -1,0 +1,102 @@
+info:
+  name: login
+  type: http
+  seq: 1
+  tags:
+    - smoke
+    - regression
+
+http:
+  method: POST
+  url: "{{baseUrl}}/auth/login"
+  headers:
+    - name: content-type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "username": "{{username}}",
+        "password": "{{password}}",
+        "expiresInMins": 30
+      }
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        // PRE-REQUEST IS ABOUT INPUTS.
+        // Pull config from the right scope (environment) and fail loudly if it
+        // is missing, instead of sending a call that can only 400.
+        const username = bru.getEnvVar("username");
+        const password = bru.getEnvVar("password");
+
+        if (!username || !password) {
+          throw new Error(
+            "username/password not set. Pick an environment, or inject the secret: " +
+            "bru run --env ci --env-var password=..."
+          );
+        }
+
+        console.log(`Logging in as ${username}`);
+    - type: after-response
+      code: |-
+        // POST-RESPONSE: EXTRACT.
+        // bru.setVar is runtime only - it lives in memory for this run and
+        // never touches disk. That is exactly what you want for a token.
+        // (bru.setEnvVar would persist it into environments/staging.yml.)
+        const body = res.getBody();
+
+        bru.setVar("accessToken", body.accessToken);
+        bru.setVar("userId", body.id);
+
+        console.log(`Token captured for user ${body.id}: ...${String(body.accessToken).slice(-8)}`);
+    - type: tests
+      code: |-
+        // POST-RESPONSE: ASSERT.
+        test("login returns 200", () => {
+          expect(res.getStatus()).to.equal(200);
+        });
+
+        test("response carries an access token", () => {
+          expect(res.getBody().accessToken).to.be.a("string").with.length.above(20);
+        });
+
+        test("response carries the user id we will chain on", () => {
+          expect(res.getBody().id).to.be.a("number");
+        });
+  assertions:
+    - expression: res.status
+      operator: eq
+      value: "200"
+    - expression: res.body.accessToken
+      operator: isString
+
+settings:
+  encodeUrl: true
+  timeout: 10000
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  ## login - compute inputs, assert, extract
+
+  **Pre-request** reads `username` / `password` from the environment and
+  throws if either is missing. In the `ci` environment the password is
+  deliberately empty, so this request fails *before it is sent* unless the
+  pipeline injects it:
+
+  ```bash
+  bru run --env ci --env-var password=emilyspass
+  ```
+
+  **Tests** check status and shape. The **Assertions** tab holds the
+  one-liners; the Tests tab holds anything needing logic.
+
+  **Post-response** parks the token and user id in runtime variables with
+  `bru.setVar`. Every later request reads `{{accessToken}}` through the
+  collection-level Bearer auth and `{{userId}}` in its URL or body. No
+  copy-paste between tabs, and nothing written to disk.
+
+  This request has **no auth block**, so it does not inherit the collection
+  Bearer token - it is the request that creates it.

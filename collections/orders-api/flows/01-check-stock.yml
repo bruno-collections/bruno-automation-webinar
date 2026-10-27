@@ -1,0 +1,51 @@
+info:
+  name: Check stock
+  type: http
+  seq: 1
+  tags:
+    - regression
+
+http:
+  method: GET
+  url: "{{baseUrl}}/products/{{productId}}?select=id,title,stock"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        const product = res.getBody();
+        bru.setVar("stock", product.stock);
+
+        // The response decides where the run goes next. Jumping forward skips
+        // everything in between; the request that is skipped over on the other
+        // path guards itself with skipRequest (see Notify out of stock).
+        if (product.stock > 0) {
+          console.log(`"${product.title}" has ${product.stock} in stock -> Place order`);
+          bru.runner.setNextRequest("Place order");
+        } else {
+          console.log(`"${product.title}" is out of stock -> Notify out of stock`);
+          bru.runner.setNextRequest("Notify out of stock");
+        }
+    - type: tests
+      code: |-
+        test("product found", () => {
+          expect(res.getStatus()).to.equal(200);
+          expect(res.getBody().stock).to.be.a("number");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 10000
+  followRedirects: true
+  maxRedirects: 5
+
+docs: |-
+  ## Check stock - the fork
+
+  `productId=1` is in stock, `productId=117` is not. Switch with
+  `--env-var productId=117` and watch a different request run next.
+
+  The query string is typed straight into the URL. (Params declared in the
+  Params tab do not reach the wire in the 4.x CLI, so inline is the safe form
+  for anything that has to run headless.)

@@ -1,0 +1,38 @@
+info:
+  name: flows
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit
+  scripts:
+    - type: before-request
+      code: |-
+        // Same guard as orders/: make the folder runnable on its own.
+        if (!bru.getVar("accessToken")) {
+          await bru.runRequest("auth/login");
+        }
+
+docs:
+  content: |-
+    ## flows - drive the run from scripts
+
+    File order is the default, not the rule. `Check stock` looks at the
+    response and picks the next request with `bru.runner.setNextRequest()`.
+    `Notify out of stock` and `Nightly report` drop themselves with
+    `bru.runner.skipRequest()` when they do not apply.
+
+    ```bash
+    # in stock (productId=1): Check stock -> Place order -> (Notify skipped) -> (Nightly skipped)
+    bru run flows --env staging
+
+    # out of stock: Check stock -> Notify out of stock
+    bru run flows --env staging --env-var productId=117
+
+    # include the slow report
+    bru run flows --env staging --env-var runSlowReports=true
+    ```
+
+    `setNextRequest` takes the request **name** (`info.name`), no folder
+    prefix. `runRequest` takes a file path. Easy to mix up.
+  type: text/markdown

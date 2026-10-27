@@ -1,0 +1,64 @@
+opencollection: 1.0.0
+
+info:
+  name: orders-api
+  version: v1.0.0
+
+request:
+  auth:
+    type: bearer
+    token: "{{accessToken}}"
+  scripts:
+    - type: before-request
+      code: |-
+        // HOISTED: this runs before every request in the collection.
+        // Anything you would otherwise paste into 40 requests lives here once.
+        //
+        // crypto.randomUUID() needs the developer sandbox (--sandbox developer
+        // on the CLI). {{$randomUUID}} is a built-in dynamic variable that works
+        // in both sandboxes, so it is the portable choice.
+        req.setHeader("X-Request-Id", bru.interpolate("{{$randomUUID}}"));
+        req.setHeader("X-Timestamp", String(Date.now()));
+    - type: after-response
+      code: |-
+        // One line of telemetry per request. Shows up in the app console and in
+        // `bru run` output, so the same log line follows you into CI.
+        console.log(`${req.getMethod()} ${req.getUrl()} -> ${res.getStatus()} in ${res.getResponseTime()}ms`);
+
+docs:
+  content: |-
+    # orders-api
+
+    The collection behind the **Automation Deep Dive** webinar segment. One
+    collection on disk, run three ways: Send in the app, `bru run` in the
+    terminal, and the GitHub Actions workflow in `.github/workflows/`.
+
+    It targets [DummyJSON](https://dummyjson.com), a free public fake API with a
+    real login endpoint, a protected `/auth/me`, and a cart endpoint that stands
+    in for "orders". No API key, no signup.
+
+    ## Tour
+
+    | Folder | Shows |
+    |---|---|
+    | `auth/` | pre-request input checks, post-response assert + extract, `bru.setVar` for tokens |
+    | `orders/` | chaining through runtime vars, hoisted auth, a folder-level `bru.runRequest` guard, a data-driven request |
+    | `flows/` | `setNextRequest` branching and `skipRequest`, plus the `slow` tag |
+
+    ## Hoisted to this collection
+
+    - **Auth**: Bearer `{{accessToken}}` is set once, here. Every request inherits it. `auth/login` is the one request that opts out.
+    - **Pre-request script**: stamps `X-Request-Id` and `X-Timestamp` on every call.
+    - **Post-response script**: logs one line per request.
+
+    ## Run it
+
+    ```bash
+    cd collections/orders-api
+    bru run --env staging --exclude-tags data-driven   # everything, in order
+    bru run --env staging --tags smoke --bail          # the fast gate
+    bru run --env staging --tags regression --exclude-tags slow
+    ```
+
+    Full command cheat sheet: the repo README and `WALKTHROUGH.md`.
+  type: text/markdown
