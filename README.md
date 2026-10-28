@@ -6,8 +6,8 @@ community webinar. One collection, run three ways:
 | Where | How |
 |---|---|
 | In the app | open the workspace, pick the `staging` environment, hit Send or use the Collection Runner |
-| In the terminal | `bru run --env staging` from the collection folder |
-| In CI | [`.github/workflows/api-tests.yml`](.github/workflows/api-tests.yml) runs it on every push with the official `usebruno/bruno-cli-action` |
+| In the terminal | `bru run --env staging --exclude-tags data-driven` from the collection folder |
+| In CI | [`.github/workflows/api-tests.yml`](.github/workflows/api-tests.yml) runs it on every pull request and push to `main` with the official `usebruno/bruno-cli-action` |
 
 Same files, no export, no translation step. The script you write in the
 request editor is the script CI runs.
@@ -15,7 +15,7 @@ request editor is the script CI runs.
 ## Get started
 
 ```bash
-git clone <this repo>
+git clone https://github.com/bruno-collections/bruno-automation-webinar.git
 cd bruno-automation-webinar
 ```
 
@@ -63,7 +63,7 @@ Run these from `collections/orders-api/`.
 | Everything | `bru run --env staging --exclude-tags data-driven` |
 | Fast gate, stop on first failure | `bru run --env staging --tags smoke --bail` |
 | Full regression without slow requests | `bru run --env staging --tags regression --exclude-tags slow` |
-| One folder or file | `bru run auth --env staging` / `bru run orders/get.yml --env staging` |
+| One folder or file | `bru run auth --env staging` / `bru run orders/list.yml --env staging` |
 | Override one variable | `bru run flows --env staging --env-var productId=117` |
 | Inject a secret the env file leaves empty | `bru run --env ci --env-var password=emilyspass --tags smoke` |
 | Data-driven | `bru run orders/create-from-file.yml --env staging --csv-file-path ../../data/order-lines.csv` |
@@ -80,24 +80,35 @@ bru run --env staging --tags regression --exclude-tags slow \
   --reporter-junit ../../reports/results.xml \
   --reporter-html  ../../reports/results.html \
   --reporter-json  ../../reports/results.json \
-  --reporter-skip-headers Authorization
+  --reporter-skip-headers Authorization Cookie Set-Cookie \
+  --reporter-skip-response-body
 
 echo $?   # 0 = all passed, 1 = a request, test or assertion failed
+grep -c eyJ ../../reports/results.json   # 0 = no token in the report
 ```
 
 JUnit for the CI system, HTML for people, JSON for dashboards, all from one
-run. `--reporter-skip-headers Authorization` keeps the token out of the
-artifacts. The exit code is what fails the build; CI parses nothing.
+run. The exit code is what fails the build; CI parses nothing.
+
+Skipping `Authorization` alone is not enough. The token also travels in the
+login response body, its `Set-Cookie` headers, and the `Cookie` header sent
+back on later calls. The flags above drop all of them, at the cost of response
+bodies in the report. The `grep` looks for `eyJ`, the start of every JWT, so
+it checks for the token itself rather than a header name.
 
 ## CI
 
 [`api-tests.yml`](.github/workflows/api-tests.yml) has three jobs:
 
-- **smoke** on every push and pull request: `--tags smoke --bail`.
-- **regression** on pushes to `main`: full suite, three reporters, HTML report
-  uploaded as a build artifact. `workflow_dispatch` accepts a `base-url` input
-  so a PR build can point at its own preview deployment.
-- **nightly** on a schedule: adds the `slow` requests and the data-driven run.
+- **smoke** on every pull request and push to `main`: `--tags smoke --bail`.
+- **regression** on pushes to `main` and manual runs: full suite, three
+  reporters, reports uploaded as a build artifact. `workflow_dispatch` accepts
+  a `base-url` input so you can point a run at a preview deployment.
+- **nightly** on a schedule (or manual run): adds the `slow` requests and the
+  data-driven run.
+
+Every job pins the CLI with `bru-version`, so CI runs the same version your
+team runs locally. Bump it deliberately, not by surprise.
 
 Secrets never touch the repo. The `ci` environment commits the non-secret
 config and leaves `password` empty; the pipeline injects it with

@@ -87,9 +87,7 @@ docs: |-
   deliberately empty, so this request fails *before it is sent* unless the
   pipeline injects it:
 
-  ```bash
-  bru run --env ci --env-var password=emilyspass
-  ```
+  bru run --env ci --env-var password=emilyspass --tags smoke
 
   **Tests** check status and shape. The **Assertions** tab holds the
   one-liners; the Tests tab holds anything needing logic.

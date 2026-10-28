@@ -29,7 +29,8 @@ runtime:
       code: |-
         // Compute, don't hardcode. An idempotency key is built at send time so
         // a retried POST can be recognised server-side. Never paste one in.
-        req.setHeader("Idempotency-Key", bru.interpolate("{{$randomUUID}}"));
+        const { v4: uuidv4 } = require("uuid");
+        req.setHeader("Idempotency-Key", uuidv4());
     - type: after-response
       code: |-
         // Extract for the next request in the chain.

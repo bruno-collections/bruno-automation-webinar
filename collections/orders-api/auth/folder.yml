@@ -16,7 +16,5 @@ docs:
 
     Run just this folder:
 
-    ```bash
     bru run auth --env staging
-    ```
   type: text/markdown

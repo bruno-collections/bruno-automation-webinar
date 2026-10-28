@@ -73,7 +73,8 @@ Three things to point at, no new requests to send:
 
 1. **Hoisting**: `orders/folder.yml` has a folder-level pre-request script.
    If there is no token in scope, it runs `bru.runRequest("auth/login")`.
-   That is why `bru run orders` works on its own.
+   That is why `bru run orders --env staging --exclude-tags data-driven`
+   works on its own.
 2. **Branching**: open the **flows** folder. `Check stock` calls
    `bru.runner.setNextRequest()` based on the response. `Notify out of stock`
    and `Nightly report` drop themselves with `bru.runner.skipRequest()`.
@@ -117,16 +118,23 @@ bru run --env staging --tags regression --exclude-tags slow \
   --reporter-junit ../../reports/results.xml \
   --reporter-html  ../../reports/results.html \
   --reporter-json  ../../reports/results.json \
-  --reporter-skip-headers Authorization
+  --reporter-skip-headers Authorization Cookie Set-Cookie \
+  --reporter-skip-response-body
 open ../../reports/results.html
 ```
 
 Three formats from one run. Open the HTML report. Then show the secret
-scrubbing worked:
+scrubbing worked by searching for the token itself (`eyJ` starts every JWT):
 
 ```bash
-grep -ci '"authorization"' ../../reports/results.json   # 0
+grep -c eyJ ../../reports/results.json   # 0
 ```
+
+Optional before/after: run once without the two skip flags, open the HTML
+report on **auth/me**, and `Authorization: Bearer eyJ…` is right there.
+Skipping `Authorization` alone still leaves the token in the login response
+body and the cookie headers, which is why all three headers and the response
+body are dropped.
 
 ## 7. GitHub Actions (3 min)
 

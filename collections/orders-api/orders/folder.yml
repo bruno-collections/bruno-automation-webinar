@@ -30,16 +30,11 @@ docs:
     extracted. The folder-level pre-request script logs in if nothing has yet,
     so this folder also runs standalone:
 
-    ```bash
     bru run orders --env staging --exclude-tags data-driven
-    ```
 
     `create-from-file` is the data-driven request. It only makes sense with a
     data file attached, so it is tagged `data-driven` and excluded from normal
     runs:
 
-    ```bash
-    bru run orders/create-from-file.yml --env staging \
-      --csv-file-path ../../data/order-lines.csv
-    ```
+    bru run orders/create-from-file.yml --env staging --csv-file-path ../../data/order-lines.csv
   type: text/markdown

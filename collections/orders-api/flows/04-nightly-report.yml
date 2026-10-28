@@ -53,6 +53,4 @@ docs: |-
      `runSlowReports`. The request is dropped at run time and does not count
      as a failure.
 
-  ```bash
   bru run flows --env staging --env-var runSlowReports=true
-  ```

@@ -26,9 +26,10 @@ request:
         // Anything you would otherwise paste into 40 requests lives here once.
         //
         // crypto.randomUUID() needs the developer sandbox (--sandbox developer
-        // on the CLI). {{$randomUUID}} is a built-in dynamic variable that works
-        // in both sandboxes, so it is the portable choice.
-        req.setHeader("X-Request-Id", bru.interpolate("{{$randomUUID}}"));
+        // on the CLI). The bundled uuid library works in both sandboxes, so it
+        // is the portable choice.
+        const { v4: uuidv4 } = require("uuid");
+        req.setHeader("X-Request-Id", uuidv4());
         req.setHeader("X-Timestamp", String(Date.now()));
 
         // Prints before the request's own pre-request log: collection runs first.
@@ -67,12 +68,19 @@ docs:
 
     ## Run it
 
-    ```bash
-    cd collections/orders-api
-    bru run --env staging --exclude-tags data-driven   # everything, in order
-    bru run --env staging --tags smoke --bail          # the fast gate
+    Run from `collections/orders-api/`.
+
+    **Everything, in order**:
+
+    bru run --env staging --exclude-tags data-driven
+
+    **The fast gate**:
+
+    bru run --env staging --tags smoke --bail
+
+    **Full regression without slow requests**:
+
     bru run --env staging --tags regression --exclude-tags slow
-    ```
 
     Full command cheat sheet: the repo README and `WALKTHROUGH.md`.
   type: text/markdown

@@ -19,5 +19,5 @@ variables:
   - name: runSlowReports
     value:
       type: boolean
-      data: "true"
+      data: "false"
     description: ""

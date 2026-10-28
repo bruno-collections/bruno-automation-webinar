@@ -14,13 +14,13 @@ runtime:
   scripts:
     - type: before-request
       code: |-
-        // // MANUAL CHAIN (as shipped): Send orders/list first. Its post-response
-        // // sets existingOrderId, and the URL above picks it up.
-        // //
-        // // AUTOMATIC CHAIN: uncomment the lines below. get runs list itself -
-        // // list's scripts run too, so existingOrderId is set before this URL is
-        // // built. Same file-path rule as the folder guard: "orders/list".
-        // //
+        // MANUAL CHAIN (as shipped): Send orders/list first. Its post-response
+        // sets existingOrderId, and the URL above picks it up.
+        //
+        // AUTOMATIC CHAIN: uncomment the lines below. get runs list itself -
+        // list's scripts run too, so existingOrderId is set before this URL is
+        // built. Same file-path rule as the folder guard: "orders/list".
+        //
         // const list = await bru.runRequest("orders/list");
         // console.log(`orders/list -> ${list.status}, first order #${list.data.carts[0].id}`);
     - type: tests

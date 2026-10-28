@@ -1,13 +1,13 @@
 # Every commit runs the API tests.
 #
 # Three jobs, one collection:
-#   smoke       - every push and PR. --tags smoke --bail for fast feedback.
+#   smoke       - every PR and push to main. --tags smoke --bail for fast feedback.
 #   regression  - pushes to main and manual runs. Full suite, three reporters,
 #                 report uploaded as a build artifact.
 #   nightly     - scheduled. Adds the `slow` requests and the data-driven run.
 #
 # Secrets stay in the CI vault. API_PASSWORD is injected with --env-var and
-# scrubbed from reports with --reporter-skip-headers. The `ci` environment
+# scrubbed from reports (auth and cookie headers, response bodies). The `ci` environment
 # commits only non-secret config.
 #
 # The demo backend (dummyjson.com) uses a public demo credential, so forks
@@ -46,12 +46,14 @@ jobs:
         id: bru
         uses: usebruno/bruno-cli-action@v1
         with:
+          bru-version: 4.3.0
           working-directory: ${{ env.COLLECTION }}
           command: >-
             run --env ci
             --env-var password=${{ secrets.API_PASSWORD || 'emilyspass' }}
             --tags smoke --bail
-            --reporter-skip-headers Authorization
+            --reporter-skip-headers Authorization Cookie Set-Cookie
+            --reporter-skip-response-body
 
       - name: Summary
         if: always()
@@ -60,7 +62,7 @@ jobs:
 
   regression:
     name: Regression (main)
-    if: github.event_name != 'schedule'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs: smoke
     runs-on: ubuntu-latest
     steps:
@@ -70,6 +72,7 @@ jobs:
         id: bru
         uses: usebruno/bruno-cli-action@v1
         with:
+          bru-version: 4.3.0
           working-directory: ${{ env.COLLECTION }}
           command: >-
             run --env ci
@@ -79,7 +82,8 @@ jobs:
             --reporter-junit  ../../reports/results.xml
             --reporter-html   ../../reports/results.html
             --reporter-json   ../../reports/results.json
-            --reporter-skip-headers Authorization
+            --reporter-skip-headers Authorization Cookie Set-Cookie
+            --reporter-skip-response-body
 
       - name: Summary
         if: always()
@@ -102,6 +106,7 @@ jobs:
       - name: Full run including slow requests
         uses: usebruno/bruno-cli-action@v1
         with:
+          bru-version: 4.3.0
           working-directory: ${{ env.COLLECTION }}
           command: >-
             run --env ci
@@ -109,18 +114,21 @@ jobs:
             --env-var runSlowReports=true
             --tags regression
             --reporter-junit ../../reports/nightly.xml
-            --reporter-skip-headers Authorization
+            --reporter-skip-headers Authorization Cookie Set-Cookie
+            --reporter-skip-response-body
 
       - name: Data-driven run over data/order-lines.csv
         uses: usebruno/bruno-cli-action@v1
         with:
+          bru-version: 4.3.0
           working-directory: ${{ env.COLLECTION }}
           command: >-
             run orders/create-from-file.yml --env ci
             --env-var password=${{ secrets.API_PASSWORD || 'emilyspass' }}
             --csv-file-path ../../data/order-lines.csv
             --reporter-junit ../../reports/data-driven.xml
-            --reporter-skip-headers Authorization
+            --reporter-skip-headers Authorization Cookie Set-Cookie
+            --reporter-skip-response-body
 
       - uses: actions/upload-artifact@v4
         if: always()
