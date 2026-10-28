@@ -3,6 +3,17 @@ opencollection: 1.0.0
 info:
   name: orders-api
   version: v1.0.0
+config:
+  proxy:
+    inherit: true
+    config:
+      protocol: http
+      hostname: ""
+      port: ""
+      auth:
+        username: ""
+        password: ""
+      bypassProxy: ""
 
 request:
   auth:
@@ -19,6 +30,9 @@ request:
         // in both sandboxes, so it is the portable choice.
         req.setHeader("X-Request-Id", bru.interpolate("{{$randomUUID}}"));
         req.setHeader("X-Timestamp", String(Date.now()));
+
+        // Prints before the request's own pre-request log: collection runs first.
+        console.log(`[collection] pre-request stamped X-Request-Id ${req.getHeader("X-Request-Id")}`);
     - type: after-response
       code: |-
         // One line of telemetry per request. Shows up in the app console and in
@@ -62,3 +76,5 @@ docs:
 
     Full command cheat sheet: the repo README and `WALKTHROUGH.md`.
   type: text/markdown
+bundled: false
+extensions: {}

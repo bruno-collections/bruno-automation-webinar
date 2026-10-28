@@ -77,6 +77,7 @@ settings:
   timeout: 10000
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true
 
 docs: |-
   ## login - compute inputs, assert, extract

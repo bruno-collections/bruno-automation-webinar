@@ -12,6 +12,17 @@ http:
 
 runtime:
   scripts:
+    - type: before-request
+      code: |-
+        // // MANUAL CHAIN (as shipped): Send orders/list first. Its post-response
+        // // sets existingOrderId, and the URL above picks it up.
+        // //
+        // // AUTOMATIC CHAIN: uncomment the lines below. get runs list itself -
+        // // list's scripts run too, so existingOrderId is set before this URL is
+        // // built. Same file-path rule as the folder guard: "orders/list".
+        // //
+        // const list = await bru.runRequest("orders/list");
+        // console.log(`orders/list -> ${list.status}, first order #${list.data.carts[0].id}`);
     - type: tests
       code: |-
         const order = res.getBody();
@@ -40,6 +51,7 @@ settings:
   timeout: 10000
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true
 
 docs: |-
   ## get - the end of the chain
@@ -49,3 +61,18 @@ docs: |-
 
   The last test is a habit worth copying: an unresolved `{{var}}` is sent
   literally (percent-encoded), not rejected, so check for it explicitly.
+
+  ### Manual vs. automatic chaining
+
+  As shipped, the chain is **manual**: Send `list`, then Send `get`. Send
+  `get` on its own first and the URL goes out as
+  `/carts/%7B%7BexistingOrderId%7D%7D`, 404, and the tests go red.
+
+  Uncomment the two lines in the **pre-request** script and `get` runs
+  `orders/list` itself with
+  [`bru.runRequest()`](https://docs.usebruno.com/testing/script/request-chaining).
+  `list`'s own scripts run too, so `existingOrderId` is set before this URL is
+  built. Send `get` cold and it goes green.
+
+  Left uncommented, a full `bru run` calls `/carts/user/{id}` twice (once as
+  `list`, once from here). Still green, just one extra call.

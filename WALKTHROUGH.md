@@ -48,6 +48,22 @@ Then **orders/create → orders/list → orders/get** in order. Each one reads
 what the previous one extracted (`{{userId}}`, then `{{existingOrderId}}`).
 Three requests in, nothing was typed by hand.
 
+**Manual → automatic chaining** on **orders/get**:
+
+1. Point at the commented-out block in its **pre-request** script. As
+   shipped, the chain is manual: `list` has to be sent first.
+2. Uncomment the two lines: `await bru.runRequest("orders/list")` plus the
+   `console.log`. Send `get`. The console shows `orders/list -> 200, first
+   order #…` before `get`'s own call, and **Timeline** shows `/carts/1`
+   resolved. `get` fetched what it needed.
+3. Re-comment it before moving on, so the repo matches what participants
+   clone.
+
+Step 2 works whether or not `list` already ran: the uncommented block
+always calls it. The "before" shot (`get` sent with no `existingOrderId`,
+URL goes out as `/carts/%7B%7BexistingOrderId%7D%7D`, 404) only shows if
+`list` hasn't run yet in this session, so do it first if you want it.
+
 Optional, if there is time: collection **Settings → Auth → No Auth**, re-send
 `auth/me`, watch it 401 and the test go red. Switch it back.
 
