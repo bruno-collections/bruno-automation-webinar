@@ -68,6 +68,7 @@ settings:
   timeout: 10000
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true
 
 docs: |-
   ## create - chain in, chain out

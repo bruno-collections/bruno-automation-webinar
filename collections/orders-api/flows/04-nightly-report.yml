@@ -17,7 +17,7 @@ runtime:
       code: |-
         // Skip conditionally. Not a failure, not a pass - just dropped from the
         // run and the report. --env-var sets strings, so compare as a string.
-        const enabled = String(bru.getEnvVar("runSlowReports")) === "true";
+        const enabled = String(bru.getEnvVar("runSlowReports")) === 'true';
 
         if (!enabled) {
           console.log("runSlowReports is off - skipping Nightly report");
@@ -40,6 +40,7 @@ settings:
   timeout: 20000
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true
 
 docs: |-
   ## Nightly report - skip and tag

@@ -17,22 +17,41 @@ docs:
   content: |-
     ## flows - drive the run from scripts
 
-    File order is the default, not the rule. `Check stock` looks at the
-    response and picks the next request with `bru.runner.setNextRequest()`.
-    `Notify out of stock` and `Nightly report` drop themselves with
-    `bru.runner.skipRequest()` when they do not apply.
+    File order is the default, not the rule. `Check stock` looks at the response and picks the next request with `bru.runner.setNextRequest()`. `Notify out of stock` and `Nightly report` drop themselves with `bru.runner.skipRequest()` when they do not apply.
 
-    ```bash
-    # in stock (productId=1): Check stock -> Place order -> (Notify skipped) -> (Nightly skipped)
-    bru run flows --env staging
+    ## CLI reference
 
-    # out of stock: Check stock -> Notify out of stock
+    Run from `collections/orders-api/`. `productId` is passed explicitly so the branch doesn't depend on what the environment file currently holds.
+
+    **Branch A, in stock**: Check stock -> Place order. Notify and Nightly skip themselves.
+
+    bru run flows --env staging --env-var productId=1
+
+    **Branch B, out of stock**: Check stock -> Notify out of stock. Nightly skips itself.
+
     bru run flows --env staging --env-var productId=117
 
-    # include the slow report
-    bru run flows --env staging --env-var runSlowReports=true
-    ```
+    **Either branch plus the slow report**: Nightly runs and lists out-of-stock products. `--env-var` can be repeated; tag flags can't (use one comma-separated value).
 
-    `setNextRequest` takes the request **name** (`info.name`), no folder
-    prefix. `runRequest` takes a file path. Easy to mix up.
+    bru run flows --env staging --env-var productId=1 --env-var runSlowReports=true
+
+    bru run flows --env staging --env-var productId=117 --env-var runSlowReports=true
+
+    **Tag filter instead of a script skip**: Nightly is never started, not counted.
+
+    bru run flows --env staging --env-var productId=1 --exclude-tags slow
+
+    **What the nightly CI job does**: ci env, password injected, slow report on.
+
+    bru run flows --env ci --env-var password=emilyspass --env-var runSlowReports=true
+
+    **With an HTML report** (reports/ is gitignored):
+
+    bru run flows --env staging --env-var productId=1 --reporter-html ../../reports/flows.html
+
+    `auth/login` runs first via this folder's pre-request guard. It is not counted in the summary table.
+
+    In the **Collection Runner**, set `productId` / `runSlowReports` in the *selected* environment and **Save** before running.
+
+    `setNextRequest` takes the request **name** (`info.name`), no folder prefix. `runRequest` takes a file path. Easy to mix up.
   type: text/markdown

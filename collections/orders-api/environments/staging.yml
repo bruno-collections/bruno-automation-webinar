@@ -15,6 +15,7 @@ variables:
     description: Product to order. 1 is in stock; 117 is out of stock (drives the flows/ branch)
   - name: quantity
     value: "2"
+    description: ""
   - name: runSlowReports
     value:
       type: boolean
