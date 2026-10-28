@@ -38,7 +38,7 @@ request:
       code: |-
         // One line of telemetry per request. Shows up in the app console and in
         // `bru run` output, so the same log line follows you into CI.
-        console.log(`${req.getMethod()} ${req.getUrl()} -> ${res.getStatus()} in ${res.getResponseTime()}ms`);
+        console.log(`[collection] ${req.getMethod()} ${req.getUrl()} -> ${res.getStatus()} in ${res.getResponseTime()}ms`);
 
 docs:
   content: |-
